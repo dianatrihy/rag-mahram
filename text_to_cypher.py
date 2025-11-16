@@ -16,7 +16,8 @@ class TextToCypher:
         )[0]
         return output["generated_text"]
 
-schema = """
+if __name__ == "__main__":
+    schema = """
 Node properties:
 - **Player**
 - accountId: INTEGER
@@ -33,11 +34,11 @@ The relationships:
 (:Player)-[:SHARES]->(:Level)
 (:Player)-[:SUBMITS]->(:Comment)
 (:Level)-[:HAS]->(:Comment)
-""".strip()
+    """.strip()
 
-print("Preparing pipeline ....")
-ttc = TextToCypher(schema)
+    print("Preparing pipeline ....")
+    ttc = TextToCypher(schema)
 
-print("Generating ...")
-cypher = ttc("Find all players that submit a comment \"GG!\".")
-print(cypher)
+    print("Generating ...")
+    cypher = ttc("Find all players that submit a comment \"GG!\".")
+    print(cypher)

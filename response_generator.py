@@ -61,7 +61,8 @@ class ResponseGenerator:
         )
         return response[0]
 
-schema = """
+if __name__ == "__main__":
+    schema = """
 Node properties:
 - **Player**
 - accountId: INTEGER
@@ -78,23 +79,23 @@ The relationships:
 (:Player)-[:SHARES]->(:Level)
 (:Player)-[:SUBMITS]->(:Comment)
 (:Level)-[:HAS]->(:Comment)
-""".strip()
+    """.strip()
 
-print("Preparing pipeline ....")
-generator = ResponseGenerator(schema)
+    print("Preparing pipeline ....")
+    generator = ResponseGenerator(schema)
 
-question = "List all players and their levels."
-query = """
+    question = "List all players and their levels."
+    query = """
 MATCH (p:Player)-[:SHARES]->(l:Level)
 RETURN p.username AS username, l.name AS level_name
-""".strip()
-query_result_str = """
+    """.strip()
+    query_result_str = """
 {'username': 'Galactic71', 'level_name': 'Lanterns Preview'}
 {'username': 'Demonmaster197', 'level_name': 'fun adventure'}
 {'username': 'Demonmaster197', 'level_name': 'moonlight'}
 {'username': 'usnsrDEMON', 'level_name': 'memories'}
-""".strip()
+    """.strip()
 
-print("Generating ...")
-response = generator(question, query, query_result_str)
-print(response)
+    print("Generating ...")
+    response = generator(question, query, query_result_str)
+    print(response)
