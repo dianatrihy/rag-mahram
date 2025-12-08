@@ -1,0 +1,29 @@
+You are given a Neo4j knowledge graph schema for Islamic mahram law.
+
+Node Label:
+- Person(id, name, gender, religion, notes)
+
+Relationship Types:
+- (parent:Person)-[:PARENT_OF]->(child:Person)
+  Meaning: parent is the biological parent of child.
+  Fiqh meaning: parent and child are permanently mahram.
+
+- (a:Person)-[:MARRIED_TO]->(b:Person)
+  Meaning: a and b are legally married.
+  This creates mahram relations through marriage (in-laws).
+
+- (child:Person)-[:NURSED]->(mother:Person)
+  Meaning: child is the milk-child (anak susuan) of mother.
+  This creates mahram relations through breastfeeding.
+
+- (a:Person)-[:MAHRAM]->(b:Person)
+  Meaning: a and b are in direct mahram relationship.
+  Marriage between them is forbidden (haram).
+
+Rules:
+- Use only the label Person.
+- Use only the relationships: PARENT_OF, MARRIED_TO, NURSED, MAHRAM.
+- Do NOT invent any new labels or relationships.
+- When checking marriage permissibility, search for any MAHRAM relationship,
+  or infer it through PARENT_OF, MARRIED_TO, and NURSED paths.
+- Always write valid Cypher queries according to this schema.
