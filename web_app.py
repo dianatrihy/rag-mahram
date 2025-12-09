@@ -3,6 +3,18 @@ from database import GraphDatabaseDriver
 from text_to_cypher import TextToCypher
 from response_generator import ResponseGenerator
 
+def llm_reasoning(generator, data):
+    """
+    Menggunakan LLM untuk memverbalisasi hasil reasoning graf.
+    Data HARUS hasil dari handler (dict).
+    """
+    question = data["question"]
+    query = data["query"]
+    query_result_str = data["result"]
+
+    return generator(question, query, query_result_str)
+
+
 # Import your existing logic
 from detectors import (
     detect_type_1, detect_type_2, detect_type_3, detect_type_4
@@ -59,61 +71,71 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
     processed = False
 
     try:
-        # TIPE 1 - CEK BOLEH MENIKAH
+        # =========================
+        # ✅ TIPE 1 - CEK BOLEH MENIKAH
+        # =========================
         if detect_type_1(question):
-            name1, name2 = extract_two_names(question)
+            name1, name2 = extract_two_names(driver, question)
             if name1 and name2:
-                response_text = handle_type_1(driver, name1, name2)
+                data = handle_type_1(driver, name1, name2)
+                response_text = llm_reasoning(generator, data)
                 processed = True
             else:
-                response_text = "Maaf, saya tidak bisa mendeteksi dua nama dalam pertanyaan Anda."
-                processed = True
+                response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
+                processed = False
 
-        # TIPE 4 - MAHRAM PERSUSUAN
+        # =========================
+        # ✅ TIPE 4 - MAHRAM PERSUSUAN
+        # =========================
         elif detect_type_4(question):
-            name = extract_one_name(question)
+            name = extract_one_name(driver, question)
             if name:
-                response_text = handle_type_4(driver, name)
+                data = handle_type_4(driver, name)
+                response_text = llm_reasoning(generator, data)
                 processed = True
             else:
-                response_text = "Maaf, nama tidak terdeteksi."
-                processed = True
+                response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
+                processed = False
 
-        # TIPE 2 - DAFTAR MAHRAM UMUM
+        # =========================
+        # ✅ TIPE 2 - DAFTAR MAHRAM UMUM
+        # =========================
         elif detect_type_2(question):
-            name = extract_one_name(question)
+            name = extract_one_name(driver, question)
             if name:
-                response_text = handle_type_2(driver, name)
+                data = handle_type_2(driver, name)
+                response_text = llm_reasoning(generator, data)
                 processed = True
             else:
-                response_text = "Maaf, nama tidak terdeteksi."
-                processed = True
+                response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
+                processed = False
 
-        # TIPE 3 - PENJELASAN HUBUNGAN MAHRAM
+        # =========================
+        # ✅ TIPE 3 - PENJELASAN HUBUNGAN MAHRAM
+        # =========================
         elif detect_type_3(question):
-            name1, name2 = extract_two_names(question)
+            name1, name2 = extract_two_names(driver, question)
             if name1 and name2:
-                response_text = handle_type_3(driver, name1, name2)
+                data = handle_type_3(driver, name1, name2)
+                response_text = llm_reasoning(generator, data)
                 processed = True
             else:
-                response_text = "Maaf, dua nama tidak terdeteksi."
-                processed = True
+                response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
+                processed = False
 
-        # FALLBACK: RAG MURNI
+        # =========================
+        # 🔁 FALLBACK: RAG MURNI (LLM + CYPHER)
+        # =========================
         if not processed:
             with st.spinner('Sedang menganalisis pertanyaan...'):
-                # Generate Cypher
                 query = ttc(question)
-                
-                # Execute
                 results = driver.execute_query(query)
-                
+
                 if len(results) > 0:
                     query_result_str = "\n".join([str(x) for x in results])
                 else:
                     query_result_str = "(no result)"
-                
-                # Generate Response
+
                 response_text = generator(question, query, query_result_str)
 
     except Exception as e:
@@ -121,5 +143,5 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
 
     with st.chat_message("assistant"):
         st.markdown(response_text)
-    
+
     st.session_state.messages.append({"role": "assistant", "content": response_text})

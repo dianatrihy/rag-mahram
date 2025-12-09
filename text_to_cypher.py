@@ -1,30 +1,109 @@
-from transformers import pipeline
+import os
+# import google.generativeai as genai
+from groq import Groq
+
+GROQ_API_KEY = "your_key"
+
+# GEMINI_API_KEY = "your_key"
+
+# genai.configure(api_key=GEMINI_API_KEY)
+
+# class TextToCypher:
+#     def __init__(self, schema: str, model="models/gemini-flash-latest"):
+#         self._schema = schema
+#         self._model = genai.GenerativeModel(model)
+
+#     def __call__(self, question: str):
+#         prompt = f"""
+# You are an expert in Neo4j Cypher query generation.
+
+# Schema:
+# {self._schema}
+
+# User Question:
+# {question}
+
+# IMPORTANT:
+# - Use ONLY the labels and relationships from the schema.
+# - Do NOT hallucinate properties or relationships.
+# - Return ONLY a valid Cypher query.
+# - Do NOT add explanation.
+# """
+
+#         try:
+#             response = self._model.generate_content(prompt)
+#             return response.text.strip()
+#         except Exception as e:
+#             return f"[ERROR Gemini - TextToCypher] {str(e)}"
 
 class TextToCypher:
-    def __init__(self, schema: str):
+    def __init__(self, schema: str, model="llama-3.1-8b-instant"):
         self._schema = schema
-        self._pipe = pipeline("text-generation", model="VoErik/cypher-gemma")
+        self._model_name = model
+
+        self._client = Groq(
+            api_key=GROQ_API_KEY
+        )
 
     def __call__(self, question: str):
-        output = self._pipe(
-            [{
-                "role": "user",
-                "content": f"Question: {question} \n Schema: {self._schema}"}
-            ],
-            max_new_tokens=256,
-            return_full_text=False
-        )[0]
-        generated_text = output["generated_text"]
-        generated_text = generated_text.replace(r"\n", "\n")
-        return generated_text
+        prompt = f"""
+You are a Neo4j Cypher query generator for a Knowledge Graph about Islamic family relations.
 
+SCHEMA (DO NOT VIOLATE THIS):
+{self._schema}
+
+USER QUESTION:
+{question}
+
+STRICT RULES (MANDATORY):
+1. Output ONLY pure Cypher query. NO markdown. NO ``` NO explanation.
+2. Use ONLY these relationships:
+   - PARENT_OF
+   - NURSED
+   - MARRIED_TO
+   - MAHRAM
+3. DO NOT use wildcard [*] or variable-length paths unless the question EXPLICITLY asks for "jalur", "hubungan", "rantai", or "path".
+4. For direct lookup questions, use EXACTLY ONE hop (no *1.., no *0..).
+5. DO NOT generate marriage legality, halal/haram, or permission queries.
+6. DO NOT return boolean decisions.
+7. ALWAYS include a RETURN clause with specific properties (e.g., name, gender).
+8. DO NOT hallucinate labels, relationships, or properties.
+9. Direction of relation MUST match the schema semantics:
+   - (:Person)-[:PARENT_OF]->(:Person) means parent → child
+   - (:Person)-[:MARRIED_TO]->(:Person) means spouse
+   - (:Person)-[:NURSED]->(:Person) means wet-nurse → child
+10. If the question is unclear or illegal under these rules, return:
+    MATCH (p:Person) RETURN p.name LIMIT 5
+"""
+
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model_name,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0,
+                max_tokens=256
+            )
+
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            return f"[ERROR Groq - TextToCypher] {str(e)}"
+
+
+
+# TEST STANDALONE
 if __name__ == "__main__":
-    with open("schema_example.txt") as fp:
+    with open("schema_mahram.txt") as fp: 
         schema = fp.read().strip()
 
     print("Preparing pipeline ....")
     ttc = TextToCypher(schema)
 
+    # Contoh pertanyaan domain mahram
+    question = "Siapa orang tua Ali?"
+
     print("Generating ...")
-    cypher = ttc("Find all players that submit a comment \"GG!\".")
+    cypher = ttc(question)
     print(cypher)

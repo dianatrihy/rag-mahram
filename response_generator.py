@@ -1,4 +1,9 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import os
+# import google.generativeai as genai
+from groq import Groq
+
+# GEMINI_API_KEY = "your_key"
+GROQ_API_KEY = "your_key"
 
 PROMPT_TEMPLATE = """
 <SCHEMA>
@@ -15,71 +20,132 @@ Query result:
 Answer:
 """.strip()
 
+# genai.configure(api_key=GEMINI_API_KEY)
+
+
+# class ResponseGenerator:
+#     def __init__(self, schema: str, model="llama3-8b-8192"):
+#         self._schema = schema
+#         self._model = genai.GenerativeModel(model)
+
+#     def __call__(self, question: str, query: str, query_result_str: str):
+
+#         # Anti-halusinasi: jika graph kosong, jangan minta LLM ngarang
+#         if query_result_str.strip() in ["", "(no result)"]:
+#             return "Data tidak ditemukan dalam graf."
+
+#         prompt = PROMPT_TEMPLATE
+#         prompt = prompt.replace("<SCHEMA>", self._schema)
+#         prompt = prompt.replace("<QUESTION>", question)
+#         prompt = prompt.replace("<QUERY>", query)
+#         prompt = prompt.replace("<QUERY-RESULT-STR>", query_result_str)
+
+#         system_prompt = (
+#             "You are a helpful assistant. "
+#             "Answer the user question using ONLY the provided Neo4j query result. "
+#             "Do NOT add any external knowledge."
+#         )
+
+#         full_prompt = f"{system_prompt}\n\n{prompt}"
+
+#         try:
+#             response = self._model.generate_content(full_prompt)
+#             return response.text.strip()
+#         except Exception as e:
+#             return f"[ERROR Gemini] {str(e)}"
+
 class ResponseGenerator:
     def __init__(self, schema: str):
-        model_name = "Qwen/Qwen2.5-0.5B-Instruct"
-        self._model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            dtype="auto",
-            device_map="auto"
-        )
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
         self._schema = schema
 
+        self.client = Groq(
+            api_key=GROQ_API_KEY
+        )
+        self.model_name = "llama-3.1-8b-instant"
+
     def __call__(self, question: str, query: str, query_result_str: str):
+        # ============================
+        # ✅ 1. CEK DATA KOSONG DULU
+        # ============================
+        if (
+            not query_result_str
+            or query_result_str.strip() == ""
+            or query_result_str.strip() == "(no result)"
+            or query_result_str.strip() == "[]"
+        ):
+            return (
+                "Maaf, data yang Anda tanyakan tidak ditemukan "
+                "di dalam basis pengetahuan (schema) sistem."
+            )
+
+        # ============================
+        # ✅ 2. BARU PANGGIL LLM JIKA ADA DATA
+        # ============================
         prompt = PROMPT_TEMPLATE
         prompt = prompt.replace("<SCHEMA>", self._schema)
         prompt = prompt.replace("<QUESTION>", question)
         prompt = prompt.replace("<QUERY>", query)
         prompt = prompt.replace("<QUERY-RESULT-STR>", query_result_str)
 
-        messages = [
-            {"role": "system", "content": "Answer the user question using the provided Neo4j context. Only response the query result in natural language."},
-            {"role": "user", "content": prompt}
-        ]
-        text = self._tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
+        completion = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert in Islamic mahram law. "
+                        "Answer ONLY based on the Neo4j query result. "
+                        "If the result is unclear, say the data is not available."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2,
+            max_tokens=512
         )
-        model_inputs = (
-            self._tokenizer([text], return_tensors="pt")
-            .to(self._model.device)
-        )
-        generated_ids = self._model.generate(
-            **model_inputs,
-            max_new_tokens=512
-        )
-        generated_ids = [
-            output_ids[len(input_ids):]
-            for input_ids, output_ids in zip(model_inputs.input_ids,
-                                             generated_ids)
-        ]
-        response = self._tokenizer.batch_decode(
-            generated_ids,
-            skip_special_tokens=True
-        )
-        return response[0]
 
+        return completion.choices[0].message.content.strip()
+    
+# TEST STANDALONE 
 if __name__ == "__main__":
-    with open("schema_example.txt") as fp:
+    with open("schema_mahram.txt") as fp:   
         schema = fp.read().strip()
 
     print("Preparing pipeline ....")
     generator = ResponseGenerator(schema)
 
-    question = "List all players and their levels."
+    # Contoh pertanyaan domain mahram
+    question = "Apakah Budi boleh menikahi Ila?"
+
+    # Contoh query hasil dari sistem graf (Tipe 1)
     query = """
-MATCH (p:Player)-[:SHARES]->(l:Level)
-RETURN p.username AS username, l.name AS level_name
+MATCH p = shortestPath(
+  (a:Person {name: "Budi"})-
+  [:PARENT_OF|NURSED|MARRIED_TO*1..6]-
+  (b:Person {name: "Ila"})
+)
+WITH p,
+     [r IN relationships(p)
+      WHERE type(r) = "MARRIED_TO" AND r.consummated = true] AS valid_marriage,
+     [r IN relationships(p)
+      WHERE type(r) IN ["PARENT_OF", "NURSED"]] AS blood_or_milk
+RETURN
+CASE
+  WHEN size(blood_or_milk) > 0 THEN true
+  WHEN size(valid_marriage) > 0 THEN true
+  ELSE false
+END AS is_mahram
     """.strip()
+
+    # ✅ Contoh hasil query dari Neo4j
     query_result_str = """
-{'username': 'Galactic71', 'level_name': 'Lanterns Preview'}
-{'username': 'Demonmaster197', 'level_name': 'fun adventure'}
-{'username': 'Demonmaster197', 'level_name': 'moonlight'}
-{'username': 'usnsrDEMON', 'level_name': 'memories'}
+{'is_mahram': true}
     """.strip()
 
     print("Generating ...")
     response = generator(question, query, query_result_str)
     print(response)
+
