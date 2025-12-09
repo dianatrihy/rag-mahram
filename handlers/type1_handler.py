@@ -17,19 +17,25 @@ def handle_type_1(driver, name1, name2):
     gender1 = get_gender(driver, name1)
     gender2 = get_gender(driver, name2)
 
-    # Jika salah satu nama tidak ada
+    # ============================
+    # ✅ HARD STOP: NAMA TIDAK ADA
+    # ============================
     if not gender1 or not gender2:
         return {
             "type": "type_1",
             "question": f"Apakah {name1} boleh menikahi {name2}?",
-            "query": "(gender not found)",
+            "query": "(name validation)",
             "result": "(no result)",
             "extra": {
-                "error": "Nama tidak ditemukan di graf."
+                "error": "Nama tidak ditemukan di dalam schema graf.",
+                "found_name_1": bool(gender1),
+                "found_name_2": bool(gender2)
             }
         }
 
-    # FILTER SE-GENDER 
+    # ============================
+    # ✅ HARD STOP: FILTER SE-GENDER
+    # ============================
     if gender1 == gender2:
         return {
             "type": "type_1",
@@ -44,18 +50,29 @@ def handle_type_1(driver, name1, name2):
             }
         }
 
-    # LANJUT KE QUERY GRAF
+    # ============================
+    # ✅ QUERY GRAF MAHRAM
+    # ============================
     query = build_check_marriage_query(name1, name2)
     results = driver.execute_query(query)
 
+    # ============================
+    # ✅ HARD STOP: QUERY TIDAK ADA HASIL
+    # ============================
     if len(results) == 0:
         return {
             "type": "type_1",
             "question": f"Apakah {name1} boleh menikahi {name2}?",
             "query": query,
-            "result": "(no result)"
+            "result": "(no result)",
+            "extra": {
+                "error": "Relasi tidak ditemukan di graf."
+            }
         }
 
+    # ============================
+    # ✅ HASIL VALID DARI GRAF
+    # ============================
     return {
         "type": "type_1",
         "question": f"Apakah {name1} boleh menikahi {name2}?",
