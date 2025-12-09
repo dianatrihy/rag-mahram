@@ -2,20 +2,6 @@ import streamlit as st
 from database import GraphDatabaseDriver
 from text_to_cypher import TextToCypher
 from response_generator import ResponseGenerator
-
-def llm_reasoning(generator, data):
-    """
-    Menggunakan LLM untuk memverbalisasi hasil reasoning graf.
-    Data HARUS hasil dari handler (dict).
-    """
-    question = data["question"]
-    query = data["query"]
-    query_result_str = data["result"]
-
-    return generator(question, query, query_result_str)
-
-
-# Import your existing logic
 from detectors import (
     detect_type_1, detect_type_2, detect_type_3, detect_type_4
 )
@@ -25,12 +11,18 @@ from handlers.type2_handler import handle_type_2
 from handlers.type3_handler import handle_type_3
 from handlers.type4_handler import handle_type_4
 
+def llm_reasoning(generator, data):
+    question = data["question"]
+    query = data["query"]
+    query_result_str = data["result"]
+
+    return generator(question, query, query_result_str)
+
 # Page Configuration
 st.set_page_config(page_title="Mahram Knowledge Graph", layout="centered")
 st.title("🕌 Sistem Tanya Jawab Mahram")
 st.markdown("Tanyakan tentang hukum pernikahan, daftar mahram, atau jalur kekerabatan.")
 
-# --- 1. Load Resources Caching ---
 @st.cache_resource
 def load_resources():
     # Load Schema
@@ -52,16 +44,12 @@ except Exception as e:
     st.error(f"Error connecting to database or loading models: {e}")
     st.stop()
 
-# --- 2. Chat Interface ---
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-
-# --- 3. Processing Logic ---
 
 if question := st.chat_input("Masukkan pertanyaan Anda..."):
     st.chat_message("user").write(question)
@@ -71,9 +59,7 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
     processed = False
 
     try:
-        # =========================
-        # ✅ TIPE 1 - CEK BOLEH MENIKAH
-        # =========================
+        # TIPE 1 - CEK BOLEH MENIKAH
         if detect_type_1(question):
             name1, name2 = extract_two_names(driver, question)
             if name1 and name2:
@@ -84,9 +70,7 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
                 response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
                 processed = False
 
-        # =========================
-        # ✅ TIPE 4 - MAHRAM PERSUSUAN
-        # =========================
+        # TIPE 4 - MAHRAM PERSUSUAN
         elif detect_type_4(question):
             name = extract_one_name(driver, question)
             if name:
@@ -97,9 +81,7 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
                 response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
                 processed = False
 
-        # =========================
-        # ✅ TIPE 2 - DAFTAR MAHRAM UMUM
-        # =========================
+        # TIPE 2 - DAFTAR MAHRAM UMUM
         elif detect_type_2(question):
             name = extract_one_name(driver, question)
             if name:
@@ -110,9 +92,7 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
                 response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
                 processed = False
 
-        # =========================
-        # ✅ TIPE 3 - PENJELASAN HUBUNGAN MAHRAM
-        # =========================
+        # TIPE 3 - PENJELASAN HUBUNGAN MAHRAM
         elif detect_type_3(question):
             name1, name2 = extract_two_names(driver, question)
             if name1 and name2:
@@ -123,9 +103,7 @@ if question := st.chat_input("Masukkan pertanyaan Anda..."):
                 response_text = "Maaf, dua nama tidak terdeteksi. Mencoba menggunakan RAG murni."
                 processed = False
 
-        # =========================
-        # 🔁 FALLBACK: RAG MURNI (LLM + CYPHER)
-        # =========================
+        # FALLBACK: RAG MURNI (LLM + CYPHER)
         if not processed:
             with st.spinner('Sedang menganalisis pertanyaan...'):
                 query = ttc(question)

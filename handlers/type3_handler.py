@@ -18,7 +18,6 @@ def handle_type_3(driver, name1, name2):
     gender1 = get_gender(driver, name1)
     gender2 = get_gender(driver, name2)
 
-    # Jika salah satu tidak ditemukan
     if not gender1 or not gender2:
         return {
             "type": "type_3",
@@ -44,7 +43,6 @@ def handle_type_3(driver, name1, name2):
             }
         }
 
-    # LANJUT KE EXPLAIN PATH
     query = build_explain_mahram_path_query(name1, name2)
     results = driver.execute_query(query)
 

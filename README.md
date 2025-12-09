@@ -1,25 +1,58 @@
-# Graph RAG Starter Kit
-This repository is prepared for Project Task II, IF4070 Knowledge Representation and Reasoning course (2025-1), STEI-ITB. You can clone it and modify whatever you want for your own domain case.
+## Cara Menjalankan Aplikasi RAG Mahram
 
-## How to use
-1. (Optional) Make a virtual environment. Command: `py -m venv ./venv`
-2. Install required dependencies. Command: `pip install -r requirements.txt`
-3. Copy `config_template.toml` to `config.toml`.
-4. Modify `config.toml` based on your database configuration.
-5. Run RAG system for testing. Command: `py rag.py`
-6. Test with one sample question, such as "How many players?".
+Ikuti langkah-langkah berikut untuk menjalankan sistem Retrieval-Augmented Generation (RAG) Mahram di komputer lokal.
 
-## Additional configuration
-- You may need to change the schema path.
-- You may need to set `HF_HOME` environment variable to determine the location of model cache.
-  - More information: https://huggingface.co/docs/datasets/cache
-- You may need to install other versions of PyTorch to support GPU (and possibly modify the code).
-- You may need to change the models for better performance.
-- You may need to handle Neo4j exceptions in case the generated Cypher is malformed.
+### 1. Membuat Virtual Environment
+```bash
+python -m venv venv
+```
 
-## References
-- https://neo4j.com/docs/python-manual/current/
+### 2. Mengaktifkan Virtual Environment
+Windows:
+```bash
+venv\Scripts\activate
+```
+Linux / macOS:
+```bash
+source venv/bin/activate
+```
 
-## README Tambahan (ntar diedit)
-- kalau mau debug jalankan yang rag.py
-- kalau mau yang udah modular dan rapi jalankan yang app.py
+### 3. Menginstall Seluruh Dependency
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Konfigurasi Database Neo4j
+Atur koneksi Neo4j di file `config.py` atau `database.py`:
+```python
+NEO4J_URI = "bolt://localhost:7687"
+NEO4J_USER = "neo4j"
+NEO4J_PASSWORD = "password"
+```
+Pastikan service Neo4j sudah berjalan sebelum aplikasi dijalankan.
+
+### 5. Konfigurasi API Key LLM
+Buat API Key pada console.groq.com
+Masukkan API key pada dua file berikut:
+
+File `response_generator.py`:
+```python
+GROQ_API_KEY = "your_key"
+```
+
+File `text_to_cypher.py`:
+```python
+GROQ_API_KEY = "your_key"
+```
+
+### 6. Menjalankan Aplikasi Streamlit
+```bash
+streamlit run web_app.py
+```
+
+Jika berhasil, aplikasi akan terbuka otomatis di browser pada:
+```
+http://localhost:8501
+```
+
+✅ Sistem RAG Mahram siap digunakan.

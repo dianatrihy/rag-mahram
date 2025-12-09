@@ -14,9 +14,7 @@ def get_gender(driver, name):
 def handle_type_2(driver, name):
     user_gender = get_gender(driver, name)
 
-    # ============================
-    # ✅ HARD STOP: NAMA TIDAK ADA
-    # ============================
+    # HARD STOP: NAMA TIDAK ADA
     if not user_gender:
         return {
             "type": "type_2",
@@ -45,9 +43,7 @@ def handle_type_2(driver, name):
             }
         }
 
-    # ============================
-    # ✅ FILTER ANTI SE-GENDER
-    # ============================
+    # FILTER ANTI SE-GENDER
     filtered = [
         row["mahram_name"]
         for row in results

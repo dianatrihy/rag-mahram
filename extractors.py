@@ -21,9 +21,6 @@ def _regex_candidates(question: str) -> List[str]:
 
 
 def _filter_by_graph(driver: GraphDatabaseDriver, candidates: List[str]) -> List[str]:
-    """
-    Hanya terima yang benar-benar ada sebagai Person di Neo4j.
-    """
     valid = []
 
     for name in candidates:

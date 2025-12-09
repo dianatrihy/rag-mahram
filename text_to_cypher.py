@@ -1,40 +1,7 @@
 import os
-# import google.generativeai as genai
 from groq import Groq
 
 GROQ_API_KEY = "your_key"
-
-# GEMINI_API_KEY = "your_key"
-
-# genai.configure(api_key=GEMINI_API_KEY)
-
-# class TextToCypher:
-#     def __init__(self, schema: str, model="models/gemini-flash-latest"):
-#         self._schema = schema
-#         self._model = genai.GenerativeModel(model)
-
-#     def __call__(self, question: str):
-#         prompt = f"""
-# You are an expert in Neo4j Cypher query generation.
-
-# Schema:
-# {self._schema}
-
-# User Question:
-# {question}
-
-# IMPORTANT:
-# - Use ONLY the labels and relationships from the schema.
-# - Do NOT hallucinate properties or relationships.
-# - Return ONLY a valid Cypher query.
-# - Do NOT add explanation.
-# """
-
-#         try:
-#             response = self._model.generate_content(prompt)
-#             return response.text.strip()
-#         except Exception as e:
-#             return f"[ERROR Gemini - TextToCypher] {str(e)}"
 
 class TextToCypher:
     def __init__(self, schema: str, model="llama-3.1-8b-instant"):

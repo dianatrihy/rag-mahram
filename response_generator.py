@@ -1,8 +1,6 @@
 import os
-# import google.generativeai as genai
 from groq import Groq
 
-# GEMINI_API_KEY = "your_key"
 GROQ_API_KEY = "your_key"
 
 PROMPT_TEMPLATE = """
@@ -20,40 +18,6 @@ Query result:
 Answer:
 """.strip()
 
-# genai.configure(api_key=GEMINI_API_KEY)
-
-
-# class ResponseGenerator:
-#     def __init__(self, schema: str, model="llama3-8b-8192"):
-#         self._schema = schema
-#         self._model = genai.GenerativeModel(model)
-
-#     def __call__(self, question: str, query: str, query_result_str: str):
-
-#         # Anti-halusinasi: jika graph kosong, jangan minta LLM ngarang
-#         if query_result_str.strip() in ["", "(no result)"]:
-#             return "Data tidak ditemukan dalam graf."
-
-#         prompt = PROMPT_TEMPLATE
-#         prompt = prompt.replace("<SCHEMA>", self._schema)
-#         prompt = prompt.replace("<QUESTION>", question)
-#         prompt = prompt.replace("<QUERY>", query)
-#         prompt = prompt.replace("<QUERY-RESULT-STR>", query_result_str)
-
-#         system_prompt = (
-#             "You are a helpful assistant. "
-#             "Answer the user question using ONLY the provided Neo4j query result. "
-#             "Do NOT add any external knowledge."
-#         )
-
-#         full_prompt = f"{system_prompt}\n\n{prompt}"
-
-#         try:
-#             response = self._model.generate_content(full_prompt)
-#             return response.text.strip()
-#         except Exception as e:
-#             return f"[ERROR Gemini] {str(e)}"
-
 class ResponseGenerator:
     def __init__(self, schema: str):
         self._schema = schema
@@ -64,23 +28,15 @@ class ResponseGenerator:
         self.model_name = "llama-3.1-8b-instant"
 
     def __call__(self, question: str, query: str, query_result_str: str):
-        # ============================
-        # ✅ 1. CEK DATA KOSONG DULU
-        # ============================
+        # HARD STOP JIKA DATA KOSONG
         if (
             not query_result_str
             or query_result_str.strip() == ""
             or query_result_str.strip() == "(no result)"
             or query_result_str.strip() == "[]"
         ):
-            return (
-                "Maaf, data yang Anda tanyakan tidak ditemukan "
-                "di dalam basis pengetahuan (schema) sistem."
-            )
+            return "Data tidak ditemukan dalam schema sistem."
 
-        # ============================
-        # ✅ 2. BARU PANGGIL LLM JIKA ADA DATA
-        # ============================
         prompt = PROMPT_TEMPLATE
         prompt = prompt.replace("<SCHEMA>", self._schema)
         prompt = prompt.replace("<QUESTION>", question)
@@ -93,9 +49,17 @@ class ResponseGenerator:
                 {
                     "role": "system",
                     "content": (
-                        "You are an expert in Islamic mahram law. "
-                        "Answer ONLY based on the Neo4j query result. "
-                        "If the result is unclear, say the data is not available."
+                        "You MUST answer ONLY using the provided Neo4j query result.\n"
+                        "You are STRICTLY FORBIDDEN to:\n"
+                        "- generate new queries\n"
+                        "- explain hypothetical conditions\n"
+                        "- make assumptions\n"
+                        "- infer relationships not present in the result\n"
+                        "- add procedural steps\n\n"
+                        "If the query result does NOT explicitly contain the answer, "
+                        "you MUST reply ONLY with:\n"
+                        "'Data tidak ditemukan dalam schema sistem.'\n\n"
+                        "Your answer MUST be SHORT, DIRECT, and FINAL."
                     )
                 },
                 {
@@ -103,11 +67,12 @@ class ResponseGenerator:
                     "content": prompt
                 }
             ],
-            temperature=0.2,
-            max_tokens=512
+            temperature=0.0,
+            max_tokens=128
         )
 
         return completion.choices[0].message.content.strip()
+
     
 # TEST STANDALONE 
 if __name__ == "__main__":
@@ -140,7 +105,7 @@ CASE
 END AS is_mahram
     """.strip()
 
-    # ✅ Contoh hasil query dari Neo4j
+    # Contoh hasil query dari Neo4j
     query_result_str = """
 {'is_mahram': true}
     """.strip()
